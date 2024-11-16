@@ -1,0 +1,90 @@
+---
+title: "HW3_Samplers"
+output: html_document
+date: "2024-11-06"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# PART 1
+
+```{r}
+# a) Preparation
+
+# Load libraries
+library(ggplot2)
+library(dplyr)
+
+# Load the dataset
+coal_data <- read.csv("coaldisasters-ds6040.csv")
+head(coal_data)
+
+```
+```{r}
+# b) Implement Gibbs sampler
+
+# Define the Gibbs sampler function
+gibbs_sampler <- function(data, a_mu, b_mu, a_lambda, b_lambda, n_samples) {
+  # Initialization
+  # ...
+  
+  # Sampler loop
+  for (i in 1:n_samples) {
+    # Update μ
+    # ...
+    
+    # Update λ
+    # ...
+    
+    # Update k
+    # ...
+  }
+  
+  # Return samples
+  return(list(mu_samples = mu_samples, lambda_samples = lambda_samples, k_samples = k_samples))
+}
+
+# Run the Gibbs sampler
+set.seed(123) # For reproducibility
+samples <- gibbs_sampler(coal_data$disasters, a_mu, b_mu, a_lambda, b_lambda, n_samples = 10000)
+
+
+
+```
+```{r}
+
+
+# Plot posterior densities for μ and λ
+ggplot(data.frame(mu = samples$mu_samples), aes(mu)) +
+  geom_density() +
+  labs(title = "Posterior Density of μ")
+
+ggplot(data.frame(lambda = samples$lambda_samples), aes(lambda)) +
+  geom_density() +
+  labs(title = "Posterior Density of λ")
+
+
+
+# Calculate EAP for μ and λ
+eap_mu <- mean(samples$mu_samples)
+eap_lambda <- mean(samples$lambda_samples)
+
+# Calculate 95% credible intervals
+ci_mu <- quantile(samples$mu_samples, c(0.025, 0.975))
+ci_lambda <- quantile(samples$lambda_samples, c(0.025, 0.975))
+
+# Most probable values of k
+k_table <- table(samples$k_samples)
+top_k <- head(sort(k_table, decreasing = TRUE), 5)
+
+
+
+
+```
+
+
+
+
+

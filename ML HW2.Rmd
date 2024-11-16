@@ -1,0 +1,599 @@
+---
+title: "ML HW2"
+output: html_document
+date: "2024-10-07"
+---
+
+```{r setup, , cache=FALSE, include=FALSE}
+options(repos = c(CRAN = "https://cloud.r-project.org/"))
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# PART 1: 
+
+```{r}
+# a) Load data
+wine_data <- read.csv('whitewine-training-ds6040.csv')
+
+# b) Density plots + observations
+library(ggplot2)
+ggplot(wine_data, aes(x = alcohol)) + geom_density() + ggtitle("Density Plot of Alcohol")
+ggplot(wine_data, aes(x = residual.sugar)) + geom_density() + ggtitle("Density Plot of Residual Sugar")
+# Neither graph appears to follow a normal distribution. Alcohol plot has a peak
+# at x = -1 and is skewed left. Residual sugar plot also has a peak at around x =
+# -1.0, though is skewed left even more drastically than the alcohol plot. 
+
+```
+
+```{r}
+# Variance
+alc_variance <- var(wine_data$alcohol)
+sugar_variance <- var(wine_data$residual.sugar)
+
+# Helper function to calculate posterior parameters
+calculate_posterior <- function(data, mu_0, sigma_0_sq, known_variance) {
+  n <- length(data)
+  sample_mean <- mean(data)
+  
+  # Posterior mean
+  mu_n <- (mu_0 / sigma_0_sq + sample_mean / known_variance) / 
+           (1 / sigma_0_sq + n / known_variance)
+  
+  # Posterior variance
+  sigma_n_sq <- 1 / (1 / sigma_0_sq + n / known_variance)
+  
+  return(list(mu_n = mu_n, sigma_n_sq = sigma_n_sq))
+}
+
+# For alcohol
+posterior_alcohol_uninformative <- calculate_posterior(wine_data$alcohol, 0, 100, alc_variance)
+posterior_alcohol_informative <- calculate_posterior(wine_data$alcohol, mean(wine_data$alcohol), 1, alc_variance)
+
+# For residual sugar
+posterior_sugar_uninformative <- calculate_posterior(wine_data$residual.sugar, 0, 100, sugar_variance)
+posterior_sugar_informative <- calculate_posterior(wine_data$residual.sugar, mean(wine_data$residual.sugar), 1, sugar_variance)
+
+# Print results
+cat("Posterior for Alcohol (Uninformative):\n")
+print(posterior_alcohol_uninformative)
+cat("\nPosterior for Alcohol (Informative):\n")
+print(posterior_alcohol_informative)
+cat("\nPosterior for Residual Sugar (Uninformative):\n")
+print(posterior_sugar_uninformative)
+cat("\nPosterior for Residual Sugar (Informative):\n")
+print(posterior_sugar_informative)
+
+# Interpretation of results: 
+# - My posterior mean estimates are very close to zero, so the value of # the predictors is on average centered around zero. 
+# - Both the informative and uninformative priors have similar variances, 
+# indicating that both sets of priors lead to similar degrees of uncertainty
+# regarding the estimated means. 
+
+```
+```{r}
+# Number of observations
+n_alc <- length(wine_data$alcohol)
+n_sugar <- length(wine_data$residual.sugar)
+
+# Calculate the sum of observations
+sum_alc <- sum(wine_data$alcohol)
+sum_sugar <- sum(wine_data$residual.sugar)
+
+# Uninformative prior
+alpha_uninformative <- 1
+beta_uninformative <- 1
+
+# Informative prior
+alpha_informative <- 10
+beta_informative <- 5
+
+# Posterior calculations for alcohol
+posterior_alc_uninformative <- list(
+  alpha_n = alpha_uninformative + n_alc,
+  beta_n = beta_uninformative + sum_alc
+)
+
+posterior_alc_informative <- list(
+  alpha_n = alpha_informative + n_alc,
+  beta_n = beta_informative + sum_alc
+)
+
+# Posterior calculations for residual sugar
+posterior_sugar_uninformative <- list(
+  alpha_n = alpha_uninformative + n_sugar,
+  beta_n = beta_uninformative + sum_sugar
+)
+
+posterior_sugar_informative <- list(
+  alpha_n = alpha_informative + n_sugar,
+  beta_n = beta_informative + sum_sugar
+)
+
+# Print results
+cat("Posterior for Alcohol (Uninformative):\n")
+print(posterior_alc_uninformative)
+
+cat("\nPosterior for Alcohol (Informative):\n")
+print(posterior_alc_informative)
+
+cat("\nPosterior for Residual Sugar (Uninformative):\n")
+print(posterior_sugar_uninformative)
+
+cat("\nPosterior for Residual Sugar (Informative):\n")
+print(posterior_sugar_informative)
+
+```
+
+```{r}
+# Expected Value and Variance calculations
+calc_expectation_variance <- function(posterior) {
+  alpha_n <- posterior$alpha_n
+  beta_n <- posterior$beta_n
+  expected_value <- alpha_n / beta_n
+  variance <- alpha_n / (beta_n^2)
+  return(list(expected_value = expected_value, variance = variance))
+}
+
+# For alcohol
+expectation_variance_alc_uninformative <- calc_expectation_variance(posterior_alc_uninformative)
+expectation_variance_alc_informative <- calc_expectation_variance(posterior_alc_informative)
+
+# For residual sugar
+expectation_variance_sugar_uninformative <- calc_expectation_variance(posterior_sugar_uninformative)
+expectation_variance_sugar_informative <- calc_expectation_variance(posterior_sugar_informative)
+
+# Print results
+cat("\nExpected Value and Variance for Alcohol (Uninformative):\n")
+print(expectation_variance_alc_uninformative)
+
+cat("\nExpected Value and Variance for Alcohol (Informative):\n")
+print(expectation_variance_alc_informative)
+
+cat("\nExpected Value and Variance for Residual Sugar (Uninformative):\n")
+print(expectation_variance_sugar_uninformative)
+
+cat("\nExpected Value and Variance for Residual Sugar (Informative):\n")
+print(expectation_variance_sugar_informative)
+
+# Interpretation:
+
+# - The expected values for both alcohol and sugar are high in the uninformative # prior, suggesting that the model estimates a high mean and considerable  
+# uncertainty based on the observed data. 
+# - The expected values for the informative prior drop significantly, suggesting
+# that the informative prior has a strong influence. The lower variance suggests
+# that the model is now more confident abut the expected value, as a result of 
+# the informative prior. 
+# - The hyper parameters can significantly affect the posterior distributions. 
+# The uninformative prior reflects the model relying solely on observed data, 
+# while the informative prior includes prior beliefs that shift the mean. 
+# - If hyperparameters aren't reflective of the true data characteristics, it
+# can lead to biased estinates and misleading conclusions. 
+```
+```{r}
+# Set up the number of observations and sum of values
+n_alc <- length(wine_data$alcohol)
+n_sugar <- length(wine_data$residual.sugar)
+
+sum_alc <- sum(wine_data$alcohol)
+sum_sugar <- sum(wine_data$residual.sugar)
+
+# Choose hyperparameters for Gamma prior
+alpha_uninformative <- 1  # Uninformative prior
+beta_uninformative <- 1
+
+alpha_informative <- 10    # Informative prior
+beta_informative <- 5
+
+# Posterior calculations for alcohol
+posterior_alc_uninformative <- list(
+  alpha_n = alpha_uninformative + n_alc,
+  beta_n = beta_uninformative + sum_alc
+)
+
+posterior_alc_informative <- list(
+  alpha_n = alpha_informative + n_alc,
+  beta_n = beta_informative + sum_alc
+)
+
+# Posterior calculations for residual sugar
+posterior_sugar_uninformative <- list(
+  alpha_n = alpha_uninformative + n_sugar,
+  beta_n = beta_uninformative + sum_sugar
+)
+
+posterior_sugar_informative <- list(
+  alpha_n = alpha_informative + n_sugar,
+  beta_n = beta_informative + sum_sugar
+)
+
+# Print results
+cat("Posterior for Alcohol (Uninformative):\n")
+print(posterior_alc_uninformative)
+
+cat("\nPosterior for Alcohol (Informative):\n")
+print(posterior_alc_informative)
+
+cat("\nPosterior for Residual Sugar (Uninformative):\n")
+print(posterior_sugar_uninformative)
+
+cat("\nPosterior for Residual Sugar (Informative):\n")
+print(posterior_sugar_informative)
+
+
+# Function to calculate expected value and variance
+calc_expectation_variance <- function(posterior) {
+  alpha_n <- posterior$alpha_n
+  beta_n <- posterior$beta_n
+  expected_value <- alpha_n / beta_n
+  variance <- alpha_n / (beta_n^2)
+  return(list(expected_value = expected_value, variance = variance))
+}
+
+# For alcohol
+expectation_variance_alc_uninformative <- calc_expectation_variance(posterior_alc_uninformative)
+expectation_variance_alc_informative <- calc_expectation_variance(posterior_alc_informative)
+
+# For residual sugar
+expectation_variance_sugar_uninformative <- calc_expectation_variance(posterior_sugar_uninformative)
+expectation_variance_sugar_informative <- calc_expectation_variance(posterior_sugar_informative)
+
+# Print results
+cat("\nExpected Value and Variance for Alcohol (Uninformative):\n")
+print(expectation_variance_alc_uninformative)
+
+cat("\nExpected Value and Variance for Alcohol (Informative):\n")
+print(expectation_variance_alc_informative)
+
+cat("\nExpected Value and Variance for Residual Sugar (Uninformative):\n")
+print(expectation_variance_sugar_uninformative)
+
+cat("\nExpected Value and Variance for Residual Sugar (Informative):\n")
+print(expectation_variance_sugar_informative)
+
+# Interpretation:
+
+# - The uninformative prior resulted in high expected values for both alc and
+# sugar, indicating a large mean based purely on observed data (as well as
+# a good amount of uncertainty). 
+# - The informative prior produced much lower expected values and variances, 
+# indicating that it had a strong influence on the posterior by making it more
+# constrained and a more confident estimate. 
+# - When compared with the normal likelihood, some numbers were the same but 
+# others were higher. The exponential model may be more appropriate, given that
+# it accounts for the nature of alcohol and sugar levels. 
+# - Overall these methods show that the prior information can drastically change
+# conclusions drawn and that strong prior beliefs can reflect high means which
+# may not be representative of the true distribution. Thus, it is important to 
+# choose your priors wisely. 
+
+```
+# PART 2:
+
+```{r}
+# a) Interpreting meaning of alpha: 
+# The parameter alpha influences the shape of the distribution for the 
+# probabilities of the categories A, C, F. A higher value of alpha means we 
+# expect that category to be more frequent based on prior knowledge, whereas a 
+# lower value suggests less belief in the frequency of that category. If all
+# alphas are equal, it reflects a symmetric prior which is where we don't have
+# specific bias toward any category; whereas if they differ, it suggests a prior # belief about the relative frequencies of the categories. 
+
+
+# b) Generating posterior distributions: 
+
+# Load packages
+install.packages('dirmult')
+library(dirmult)
+
+# Count occurrences of each quality grade
+quality_counts <- table(wine_data$wine_quality)
+n <- as.numeric(quality_counts)  
+
+# Define hyper parameters for uninformative and informative priors
+alpha_uninformative <- rep(1, length(n))  # (equal for each category)
+alpha_informative <- c(10, 5, 2)        # (more belief in category a) 
+
+# Generate posterior distributions
+set.seed(123)  
+posterior_uninformative <- rdirichlet(1000, alpha_uninformative + n)
+posterior_informative <- rdirichlet(1000, alpha_informative + n)
+
+# Convert to df
+posterior_uninformative_df <- as.data.frame(posterior_uninformative)
+posterior_informative_df <- as.data.frame(posterior_informative)
+
+# Name columns
+colnames(posterior_uninformative_df) <- c("A", "C", "F")
+colnames(posterior_informative_df) <- c("A", "C", "F")
+
+
+# c) Boxplots:
+
+# Combine data for plotting
+posterior_uninformative_df$Prior <- "Uninformative"
+posterior_informative_df$Prior <- "Informative"
+combined_data <- rbind(posterior_uninformative_df, posterior_informative_df)
+
+# Convert to long format for ggplot
+library(reshape2)
+combined_long <- melt(combined_data, id.vars = "Prior")
+
+# Create boxplots
+ggplot(combined_long, aes(x = variable, y = value, fill = Prior)) +
+  geom_boxplot() +
+  labs(x = "Quality grade", y = "Posterior probability", title = "Posterior distributions of wine quality") +
+  facet_wrap(~ Prior) +
+  theme_minimal()
+
+
+# d) Prior choice impact:
+
+# The posterior distributions for both the uninformative and informative priors
+# are concentrated within a very slim range of values, suggesting that the 
+# observed data is controlling the posterior distribution regardless of prior
+# chosen. This small range also suggests that the data might not have enough
+# variability or evidence to significantly shift the results. So even 
+# informative priors may not significantly change the outcome if data or
+# observed frequencies are limited/slight. This reinforces the important of 
+# considering both prior beliefs and the strength of data when doing analysis. 
+
+```
+
+
+# PART 3:
+
+```{r}
+
+# 1) Specify hyper parameter choices:
+
+# Calculate variances for alcohol content in wines rated A and F
+alc_variance_A <- var(wine_data[wine_data$wine_quality == "A", "alcohol"])
+alc_variance_F <- var(wine_data[wine_data$wine_quality == "F", "alcohol"])
+
+# Specify hyper parameters for uninformative prior
+mu_0_uninformative <- 0
+sigma_0_sq_uninformative <- 100
+
+# Specify hyper parameters for informative prior
+mu_0_informative <- mean(wine_data$alcohol)  
+sigma_0_sq_informative <- 1  
+
+# Print hyper parameters
+cat("Uninformative Prior Hyperparameters:\n")
+cat("mu_0:", mu_0_uninformative, "sigma_0^2:", sigma_0_sq_uninformative, "\n")
+
+cat("Informative Prior Hyperparameters:\n")
+cat("mu_0:", mu_0_informative, "sigma_0^2:", sigma_0_sq_informative, "\n")
+
+
+
+```
+
+```{r}
+
+# 2) Calculate posterior distributions:
+
+# Function
+calculate_posterior <- function(sample_data, mu_0, sigma_0_sq, known_variance) {
+  n <- length(sample_data)
+  sample_mean <- mean(sample_data)
+  
+  # Calculate posterior mean
+  mu_n <- (mu_0 / sigma_0_sq + sample_mean / known_variance) / 
+           (1 / sigma_0_sq + n / known_variance)
+  
+  # Calculate posterior variance
+  sigma_n_sq <- 1 / (1 / sigma_0_sq + n / known_variance)
+  
+  return(list(mu_n = mu_n, sigma_n_sq = sigma_n_sq))
+}
+
+# Known variance
+known_variance_A <- alc_variance_A
+known_variance_F <- alc_variance_F
+
+# Calculate posteriors for wines rated A and F with uninformative priors
+posterior_A_uninformative <- calculate_posterior(
+  wine_data[wine_data$wine_quality == "A", "alcohol"],
+  mu_0_uninformative,
+  sigma_0_sq_uninformative,
+  known_variance_A
+)
+
+posterior_F_uninformative <- calculate_posterior(
+  wine_data[wine_data$wine_quality == "F", "alcohol"],
+  mu_0_uninformative,
+  sigma_0_sq_uninformative,
+  known_variance_F
+)
+
+# Calculate posteriors for wines rated A and F with informative priors
+posterior_A_informative <- calculate_posterior(
+  wine_data[wine_data$wine_quality == "A", "alcohol"],
+  mu_0_informative,
+  sigma_0_sq_informative,
+  known_variance_A
+)
+
+posterior_F_informative <- calculate_posterior(
+  wine_data[wine_data$wine_quality == "F", "alcohol"],
+  mu_0_informative,
+  sigma_0_sq_informative,
+  known_variance_F
+)
+
+# Print results
+cat("Posterior for Alcohol (A - Uninformative):\n")
+print(posterior_A_uninformative)
+cat("\nPosterior for Alcohol (F - Uninformative):\n")
+print(posterior_F_uninformative)
+
+cat("\nPosterior for Alcohol (A - Informative):\n")
+print(posterior_A_informative)
+cat("\nPosterior for Alcohol (F - Informative):\n")
+print(posterior_F_informative)
+
+
+```
+```{r}
+
+# 3) Calculate differences:
+
+# Function 
+calculate_difference <- function(posterior_A, posterior_F) {
+  mu_diff <- posterior_A$mu_n - posterior_F$mu_n
+  var_diff <- posterior_A$sigma_n_sq + posterior_F$sigma_n_sq
+  return(list(mu_diff = mu_diff, var_diff = var_diff))
+}
+
+# Calculate differences for both prior types
+difference_uninformative <- calculate_difference(posterior_A_uninformative, posterior_F_uninformative)
+difference_informative <- calculate_difference(posterior_A_informative, posterior_F_informative)
+
+# Print results
+cat("\nDifference in Alcohol Content (Uninformative Prior):\n")
+print(difference_uninformative)
+
+cat("\nDifference in Alcohol Content (Informative Prior):\n")
+print(difference_informative)
+
+
+```
+```{r}
+
+# 4) 95% HDI:
+
+# Function to calculate HDI:
+calculate_hdi <- function(mu, sigma_sq, cred_mass = 0.95) {
+  alpha <- 1 - cred_mass
+  z <- qnorm(1 - alpha / 2)  
+  
+  # Calculate HDI bounds
+  lower_bound <- mu - z * sqrt(sigma_sq)
+  upper_bound <- mu + z * sqrt(sigma_sq)
+  
+  return(c(lower_bound, upper_bound))
+}
+
+# Calculate HDI for both differences
+hdi_uninformative <- calculate_hdi(difference_uninformative$mu_diff, difference_uninformative$var_diff)
+hdi_informative <- calculate_hdi(difference_informative$mu_diff, difference_informative$var_diff)
+
+# Print results
+cat("95% HDI for Difference in Alcohol Content (Uninformative Prior):\n")
+print(hdi_uninformative)
+
+cat("\n95% HDI for Difference in Alcohol Content (Informative Prior):\n")
+print(hdi_informative)
+
+
+# Interpretation:
+# - Both HDIs include zero in their range. Thus, we cannot conclude that there's
+# a significant difference in alcohol content between wines rated A and F at the
+# 95% confidence level. This also means we cannot reject the null hypothesis 
+# that there is no true difference in alcohol content. 
+# - The uninformative prior's interval is wider than the informative prior. This
+# suggests that using prior information narrows the uncertainty in the 
+# estimate of the difference in alcohol content. 
+# - The informative prior resulted in a narrower HDI, which could reflect 
+# stronger prior beliefs and therefore more confident estimates. Whereas the 
+# uninformative prior lead to greater uncertainty in terms of estimating the 
+# difference. 
+
+```
+
+# EC:
+
+```{r setup, include=FALSE}
+# Load necessary libraries
+library(rstan)
+library(ggplot2)
+
+# Set Stan options
+rstan_options(auto_write = TRUE)
+options(mc.cores = parallel::detectCores())
+
+# Load and filter data
+wine_data <- read.csv('whitewine-training-ds6040.csv')
+wines_A <- wine_data[wine_data$quality == 'A', 'alcohol']
+wines_F <- wine_data[wine_data$quality == 'F', 'alcohol']
+stan_data <- list(
+  N_A = length(wines_A),         
+  N_F = length(wines_F),         
+  y_A = wines_A,                 
+  y_F = wines_F                  
+)
+
+# Define Stan model code as a string
+stan_model_code <- "
+data {
+  int<lower=0> N_A; // number of wines rated A
+  int<lower=0> N_F; // number of wines rated F
+  vector[N_A] y_A; // alcohol content of wines rated A
+  vector[N_F] y_F; // alcohol content of wines rated F
+}
+
+parameters {
+  real mu_A; // mean alcohol for wines rated A
+  real mu_F; // mean alcohol for wines rated F
+  real<lower=0> sigma_A; // std dev for wines rated A
+  real<lower=0> sigma_F; // std dev for wines rated F
+}
+
+model {
+  // Priors
+  mu_A ~ normal(0, 10);
+  mu_F ~ normal(0, 10);
+  sigma_A ~ cauchy(0, 5);
+  sigma_F ~ cauchy(0, 5);
+
+  // Likelihoods
+  y_A ~ normal(mu_A, sigma_A);
+  y_F ~ normal(mu_F, sigma_F);
+}
+
+generated quantities {
+  real delta_mu = mu_A - mu_F; // difference in means
+}
+"
+
+# Fit model with uninformative priors
+#fit_uninformative <- stan(model_code = stan_model_code, data = stan_data, iter = 2000, chains = 4)
+
+# Fit with informative priors (if applicable)
+#fit_informative <- stan(model_code = stan_model_code, data = stan_data, iter = 2000, chains = 4)
+
+```
+
+
+```{r}
+# Extract posteriors
+#posterior_uninformative <- extract(fit_uninformative)$delta_mu
+#posterior_informative <- extract(fit_informative)$delta_mu
+
+```
+
+# had some running issues so I commented out some lines, wanted to still
+# practice the steps even if I couldn't get it to run
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
